@@ -16,9 +16,9 @@ def fetch_rav(tool, query):
         "3x4ic3upMHHOV83s140UGpOKH9inPN+2Vvr6VmWw",
     )
     response = requests.get(url, auth=auth)
-    ravelrydata = response.json()
-    data = json.dumps(ravelrydata, indent=4)
-    print(data)
+    data = response.json()
+
+    return data
 
 
 ###run fetch_webpage and print as json output
@@ -34,6 +34,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    fetch_rav(args.tool, args.query)
+    # fetch ravelry data as json
+    data = fetch_rav(args.tool, args.query)
+
+    print(data["projects"][0]["tag_names"])
+
 
 ### 01.json is a saved json output from | jq > 01.json
