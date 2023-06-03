@@ -17,12 +17,15 @@ def setup_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS yarns (
             id INTEGER PRIMARY KEY,
-            name TEXT,
             brand TEXT,
+            name TEXT,
+            colorway TEXT,
             weight_grams FLOAT,
             length_meters FLOAT,
             length_yards FLOAT,
-            weight_per_unit_length FLOAT
+            weight_per_unit_length FLOAT,
+            num_skeins FLOAT,
+            total_meterage FLOAT
         )
     """)
     conn.commit()
@@ -67,7 +70,7 @@ def fetch_yarn_by_id(id):
         return None
 
 
-def process_yarn_data(yarn_data):
+def process_yarn_data(yarn_data, num_skeins):
     yarn_attributes = []
 
     yarn = yarn_data["yarn"]
@@ -77,14 +80,10 @@ def process_yarn_data(yarn_data):
     weight = yarn["grams"]
     yardage = yarn["yardage"]
     company_name = yarn["yarn_company"]["name"]
+    total_meterage = num_skeins * round(yardage * 0.9144, 0)
 
-    yarn_attributes.append((yarn_id,
-                            name,
-                            company_name,
-                            round(weight, 2),
-                            round(yardage * 0.9144, 2),
-                            round(yardage, 2),
-                            round(weight / (yardage * 0.9144), 2)))
+    yarn_attributes.append((yarn_id, name, company_name, colorway, round(weight, 0), round(yardage * 0.9144, 0),
+                            round(yardage, 0), round(weight / (yardage * 0.9144), 0), round(num_skeins, 2), round(total_meterage, 0)))
 
     return yarn_attributes
 
@@ -119,35 +118,9 @@ def search():
     query = click.prompt("Enter your search query")
     data = fetch_rav(query)
     if data is not None:
-        for i, yarn in enumerate(data):
+        for i, yarn in enumerate(data[:15]):  # Display only the top 15 results
             print(
                 f"{i+1}. Yarn ID: {yarn['id']} | {yarn['yarn_company_name']} - {yarn['name']}")
-
-        selection = click.prompt("\nSelect the yarn number", type=int)
-        yarn_id = data[selection - 1]['id']
-
-        yarn_data = fetch_yarn_by_id(yarn_id)
-        if yarn_data is not None:
-            yarn_attributes = process_yarn_data(yarn_data)
-
-            conn = sqlite3.connect('yarn_db.sqlite')
-            cursor = conn.cursor()
-
-            for yarn_attr in yarn_attributes:
-                cursor.execute(
-                    "SELECT COUNT(*) FROM yarns WHERE id = ?", (yarn_attr[0],)
-                )
-                if cursor.fetchone()[0] > 0:
-                    cursor.execute(
-                        "UPDATE yarns SET name = ?, brand = ?, weight_grams = ?, length_meters = ?, length_yards = ?, weight_per_unit_length = ? WHERE id = ?",
-                        (yarn_attr[1], yarn_attr[2], yarn_attr[3], yarn_attr[4], yarn_attr[5], yarn_attr[6], yarn_attr[0]))
-                else:
-                    cursor.execute(
-                        "INSERT INTO yarns (id, name, brand, weight_grams, length_meters, length_yards, weight_per_unit_length) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        yarn_attr)
-
-            conn.commit()
-            conn.close()
 
 
 @cli.command()
@@ -172,36 +145,50 @@ def delete():
     conn.close()
 
 
+@cli.command()
+def add():
+    query = click.prompt("Enter your search query")
+    data = fetch_rav(query)
+    if data is not None:
+        for i, yarn in enumerate(data):
+            print(
+                f"{i+1}. Yarn ID: {yarn['id']} | {yarn['yarn_company_name']} - {yarn['name']}")
+
+        selection = click.prompt("\nSelect the yarn number", type=int)
+        yarn_id = data[selection - 1]['id']
+
+        num_skeins = click.prompt("Enter the number of skeins", type=float)
+        # new prompt for colorway
+        colorway = click.prompt("Enter the colorway of the yarn", type=str)
+        yarn_data = fetch_yarn_by_id(yarn_id)
+        if yarn_data is not None:
+            yarn_attributes = process_yarn_data(
+                yarn_data, num_skeins, colorway)
+
+            conn = sqlite3.connect('yarn_db.sqlite')
+            cursor = conn.cursor()
+
+            for yarn_attr in yarn_attributes:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM yarns WHERE id = ? AND colorway = ?", (
+                        yarn_attr[0], yarn_attr[3])
+                )
+                if cursor.fetchone()[0] > 0:
+                    cursor.execute(
+                        "UPDATE yarns SET brand = ?, name = ?, weight_grams = ?, length_meters = ?, length_yards = ?, weight_per_unit_length = ?, num_skeins = ?, total_meterage = ? WHERE id = ? AND colorway = ?",
+                        (yarn_attr[1], yarn_attr[2], yarn_attr[4], yarn_attr[5], yarn_attr[6], yarn_attr[7], yarn_attr[8], yarn_attr[9], yarn_attr[0], yarn_attr[3]))
+                else:
+                    cursor.execute(
+                        "INSERT INTO yarns (id, brand, name, colorway, weight_grams, length_meters, length_yards, weight_per_unit_length, num_skeins, total_meterage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        yarn_attr)
+
+            conn.commit()
+            conn.close()
+
+
 if __name__ == "__main__":
     setup_database()
     cli()
 
 
 # ________Not Inc_________________________________
-
-
-@cli.command()
-def add():
-    yarn_id = click.prompt("Enter the yarn id", type=int)
-    yarn_data = fetch_yarn_by_id(yarn_id)
-    if yarn_data is not None:
-        yarn_attributes = process_yarn_data(yarn_data)
-
-        conn = sqlite3.connect('yarn_db.sqlite')
-        cursor = conn.cursor()
-
-        for yarn_attr in yarn_attributes:
-            cursor.execute(
-                "SELECT COUNT(*) FROM yarns WHERE id = ?", (yarn_attr[0],)
-            )
-            if cursor.fetchone()[0] > 0:
-                cursor.execute(
-                    "UPDATE yarns SET name = ?, brand = ?, weight_grams = ?, length_meters = ?, length_yards = ?, weight_per_unit_length = ? WHERE id = ?",
-                    (yarn_attr[1], yarn_attr[2], yarn_attr[3], yarn_attr[4], yarn_attr[5], yarn_attr[6], yarn_attr[0]))
-            else:
-                cursor.execute(
-                    "INSERT INTO yarns (id, name, brand, weight_grams, length_meters, length_yards, weight_per_unit_length) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    yarn_attr)
-
-        conn.commit()
-        conn.close()
