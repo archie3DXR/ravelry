@@ -19,15 +19,22 @@ def setup_database():
             id INTEGER PRIMARY KEY,
             brand TEXT,
             name TEXT,
-            colorway TEXT,
-            weight_grams FLOAT,
-            length_meters FLOAT,
-            length_yards FLOAT,
-            weight_per_unit_length FLOAT,
-            num_skeins FLOAT,
-            total_meterage FLOAT
+            weight_grams INTEGER,
+            length_meters INTEGER,
+            length_yards INTEGER,
+            weight_per_unit_length FLOAT
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS colorways (
+            yarn_id INTEGER,
+            colorway TEXT,
+            num_skeins FLOAT,
+            FOREIGN KEY (yarn_id) REFERENCES yarns (id)
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -70,7 +77,7 @@ def fetch_yarn_by_id(id):
         return None
 
 
-def process_yarn_data(yarn_data, num_skeins):
+def process_yarn_data(yarn_data, colorway_skeins):
     yarn_attributes = []
 
     yarn = yarn_data["yarn"]
@@ -80,12 +87,11 @@ def process_yarn_data(yarn_data, num_skeins):
     weight = yarn["grams"]
     yardage = yarn["yardage"]
     company_name = yarn["yarn_company"]["name"]
-    total_meterage = num_skeins * round(yardage * 0.9144, 0)
 
-    yarn_attributes.append((yarn_id, name, company_name, colorway, round(weight, 0), round(yardage * 0.9144, 0),
-                            round(yardage, 0), round(weight / (yardage * 0.9144), 0), round(num_skeins, 2), round(total_meterage, 0)))
+    yarn_attributes.append(
+        (yarn_id, name, company_name, weight, yardage, round(weight / yardage, 2)))
 
-    return yarn_attributes
+    return yarn_attributes, colorway_skeins
 
 
 def view_database():
@@ -93,15 +99,22 @@ def view_database():
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM yarns")
-
-    rows = cursor.fetchall()
+    yarn_rows = cursor.fetchall()
 
     table = PrettyTable()
-    table.field_names = ["id", "name", "brand", "weight_grams",
-                         "length_meters", "length_yards", "weight_per_unit_length"]
+    table.field_names = ["id", "brand", "name", "weight_grams", "length_meters",
+                         "length_yards", "weight_per_unit_length", "colorway_skeins"]
 
-    for row in rows:
-        table.add_row(row)
+    for yarn_row in yarn_rows:
+        yarn_id = yarn_row[0]
+        cursor.execute(
+            "SELECT colorway, num_skeins FROM colorways WHERE yarn_id = ?", (yarn_id,))
+        colorway_rows = cursor.fetchall()
+
+        colorway_skeins = "\n".join(
+            [f"{colorway}: {num_skeins} skeins" for colorway, num_skeins in colorway_rows])
+
+        table.add_row(yarn_row + (colorway_skeins,))
 
     print(table)
 
@@ -137,6 +150,9 @@ def delete():
     cursor = conn.cursor()
 
     cursor.execute(
+        "DELETE FROM colorways WHERE yarn_id = ?", (yarn_id,)
+    )
+    cursor.execute(
         "DELETE FROM yarns WHERE id = ?", (yarn_id,)
     )
     conn.commit()
@@ -157,33 +173,101 @@ def add():
         selection = click.prompt("\nSelect the yarn number", type=int)
         yarn_id = data[selection - 1]['id']
 
-        num_skeins = click.prompt("Enter the number of skeins", type=float)
-        # new prompt for colorway
-        colorway = click.prompt("Enter the colorway of the yarn", type=str)
         yarn_data = fetch_yarn_by_id(yarn_id)
         if yarn_data is not None:
-            yarn_attributes = process_yarn_data(
-                yarn_data, num_skeins, colorway)
+            colorway_skeins = []
+            while True:
+                colorway = click.prompt(
+                    "Enter the colorway of the yarn (or 'done' to finish)", type=str)
+                if colorway.lower() == "done":
+                    break
+                num_skeins = click.prompt(
+                    "Enter the number of skeins", type=float)
+                colorway_skeins.append((colorway, num_skeins))
+
+            yarn_attributes, colorway_skeins = process_yarn_data(
+                yarn_data, colorway_skeins)
 
             conn = sqlite3.connect('yarn_db.sqlite')
             cursor = conn.cursor()
 
-            for yarn_attr in yarn_attributes:
+            cursor.execute(
+                "INSERT INTO yarns (id, brand, name, weight_grams, length_meters, length_yards, weight_per_unit_length) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                yarn_attributes[0]
+            )
+            yarn_id = yarn_attributes[0][0]
+
+            for colorway, num_skeins in colorway_skeins:
                 cursor.execute(
-                    "SELECT COUNT(*) FROM yarns WHERE id = ? AND colorway = ?", (
-                        yarn_attr[0], yarn_attr[3])
+                    "INSERT INTO colorways (yarn_id, colorway, num_skeins) VALUES (?, ?, ?)",
+                    (yarn_id, colorway, num_skeins)
                 )
-                if cursor.fetchone()[0] > 0:
-                    cursor.execute(
-                        "UPDATE yarns SET brand = ?, name = ?, weight_grams = ?, length_meters = ?, length_yards = ?, weight_per_unit_length = ?, num_skeins = ?, total_meterage = ? WHERE id = ? AND colorway = ?",
-                        (yarn_attr[1], yarn_attr[2], yarn_attr[4], yarn_attr[5], yarn_attr[6], yarn_attr[7], yarn_attr[8], yarn_attr[9], yarn_attr[0], yarn_attr[3]))
-                else:
-                    cursor.execute(
-                        "INSERT INTO yarns (id, brand, name, colorway, weight_grams, length_meters, length_yards, weight_per_unit_length, num_skeins, total_meterage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        yarn_attr)
 
             conn.commit()
             conn.close()
+
+
+@cli.command()
+def edit():
+    view_database()  # Display the existing records
+    yarn_id = click.prompt("Enter the yarn id to edit", type=int)
+
+    conn = sqlite3.connect('yarn_db.sqlite')
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT * FROM yarns WHERE id = ?", (yarn_id,)
+    )
+    yarn_row = cursor.fetchone()
+
+    if yarn_row:
+        print(f"Editing yarn with ID: {yarn_id}")
+        print(f"Current colorways for yarn '{yarn_row[3]}':")
+        cursor.execute(
+            "SELECT colorway, num_skeins FROM colorways WHERE yarn_id = ?", (yarn_id,)
+        )
+        colorway_rows = cursor.fetchall()
+        for colorway_row in colorway_rows:
+            print(
+                f"Colorway: {colorway_row[0]}, Num Skeins: {colorway_row[1]}")
+
+        while True:
+            action = click.prompt("Select an action: (a)dd, (e)dit, (r)emove, (d)one", type=str)
+            if action.lower() == "a":
+                colorway = click.prompt("Enter the new colorway", type=str)
+                num_skeins = click.prompt("Enter the number of skeins", type=float)
+                cursor.execute(
+                    "INSERT INTO colorways (yarn_id, colorway, num_skeins) VALUES (?, ?, ?)",
+                    (yarn_id, colorway, num_skeins)
+                )
+                conn.commit()
+                print("Colorway added successfully!")
+            elif action.lower() == "e":
+                colorway = click.prompt("Enter the colorway to edit", type=str)
+                new_num_skeins = click.prompt("Enter the new number of skeins", type=float)
+                cursor.execute(
+                    "UPDATE colorways SET num_skeins = ? WHERE yarn_id = ? AND colorway = ?",
+                    (new_num_skeins, yarn_id, colorway)
+                )
+                conn.commit()
+                print("Colorway updated successfully!")
+            elif action.lower() == "r":
+                colorway = click.prompt("Enter the colorway to remove", type=str)
+                cursor.execute(
+                    "DELETE FROM colorways WHERE yarn_id = ? AND colorway = ?",
+                    (yarn_id, colorway)
+                )
+                conn.commit()
+                print("Colorway removed successfully!")
+            elif action.lower() == "d":
+                break
+            else:
+                print("Invalid action. Please try again.")
+
+    else:
+        print(f"No yarn found with ID: {yarn_id}")
+
+    conn.close()
 
 
 if __name__ == "__main__":
@@ -191,4 +275,3 @@ if __name__ == "__main__":
     cli()
 
 
-# ________Not Inc_________________________________
