@@ -87,10 +87,9 @@ def process_yarn_data(yarn_data, colorway_skeins):
     name = yarn["name"]
     weight = yarn["grams"]
     yardage = yarn["yardage"]
-    total_meterage = yardage * 0.9144
 
-    yarn_attributes.append((yarn_id, brand, name, weight, round(yardage * 0.9144, 1),
-                            yardage, round(weight / (yardage * 0.9144), 2)))
+    yarn_attributes.append((yarn_id, brand, name, weight, round(yardage * 0.9144, 1) if yardage else None,
+                            yardage, round(weight / (yardage * 0.9144), 2) if yardage else None))
 
     return yarn_attributes, colorway_skeins
 
@@ -112,8 +111,16 @@ def view_database():
             "SELECT colorway, num_skeins FROM colorways WHERE yarn_id = ?", (yarn_id,))
         colorway_rows = cursor.fetchall()
 
+        yardage = yarn_row[4]
+
+        def yardage_str(num_skeins) -> str:
+            if yardage:
+                return f"{round(num_skeins * yarn_row[4] * 0.001, 2)}km"
+            else:
+                return "(no yardage)"
+
         colorway_skeins = "\n".join(
-            [f"{colorway}  - {round(num_skeins)} -  {round(num_skeins * yarn_row[4] * 0.001,2)}km" for colorway, num_skeins in colorway_rows])
+            [f"{colorway}  - {round(num_skeins)} -  {yardage_str(num_skeins)}" for colorway, num_skeins in colorway_rows])
 
         table.add_row(yarn_row[0:3] + yarn_row[3:] + (colorway_skeins,))
 
