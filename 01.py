@@ -2,18 +2,25 @@
 
 
 ##create function tofetchpage with authentication
-
+from dotenv import load_dotenv
 import sys
 import argparse
 import requests
 import json
+import sqlite3
+import os
 
+load_dotenv()
+
+
+ravelry_user = os.getenv('RAVELRY_USER')
+ravelry_password = os.getenv('RAVELRY_PASSWORD')
 
 def fetch_rav(tool, query):
     url = f"https://api.ravelry.com/projects/{tool}.json?query={query}"
     auth = (
-        "read-03d7ddeb63ba350c7f9149d489013054",
-        "3x4ic3upMHHOV83s140UGpOKH9inPN+2Vvr6VmWw",
+        os.getenv('RAVELRY_USER'),
+        os.getenv('RAVELRY_PASSWORD')
     )
     response = requests.get(url, auth=auth)
     data = response.json()
