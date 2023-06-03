@@ -234,20 +234,42 @@ def edit():
                 f"Colorway: {colorway_row[0]}, Num Skeins: {colorway_row[1]}")
 
         while True:
-            colorway = click.prompt(
-                "Enter the colorway to edit (or 'done' to finish)", type=str)
-            if colorway.lower() == "done":
+            action = click.prompt(
+                "Select an action: (a)dd, (e)dit, (r)emove, (d)one", type=str)
+            if action.lower() == "a":
+                colorway = click.prompt("Enter the new colorway", type=str)
+                num_skeins = click.prompt(
+                    "Enter the number of skeins", type=float)
+                cursor.execute(
+                    "INSERT INTO colorways (yarn_id, colorway, num_skeins) VALUES (?, ?, ?)",
+                    (yarn_id, colorway, num_skeins)
+                )
+                conn.commit()
+                print("Colorway added successfully!")
+            elif action.lower() == "e":
+                colorway = click.prompt("Enter the colorway to edit", type=str)
+                new_num_skeins = click.prompt(
+                    "Enter the new number of skeins", type=float)
+                cursor.execute(
+                    "UPDATE colorways SET num_skeins = ? WHERE yarn_id = ? AND colorway = ?",
+                    (new_num_skeins, yarn_id, colorway)
+                )
+                conn.commit()
+                print("Colorway updated successfully!")
+            elif action.lower() == "r":
+                colorway = click.prompt(
+                    "Enter the colorway to remove", type=str)
+                cursor.execute(
+                    "DELETE FROM colorways WHERE yarn_id = ? AND colorway = ?",
+                    (yarn_id, colorway)
+                )
+                conn.commit()
+                print("Colorway removed successfully!")
+            elif action.lower() == "d":
                 break
-            new_num_skeins = click.prompt(
-                "Enter the new number of skeins", type=float)
+            else:
+                print("Invalid action. Please try again.")
 
-            cursor.execute(
-                "UPDATE colorways SET num_skeins = ? WHERE yarn_id = ? AND colorway = ?",
-                (new_num_skeins, yarn_id, colorway)
-            )
-            conn.commit()
-
-        print("Yarn updated successfully!")
     else:
         print(f"No yarn found with ID: {yarn_id}")
 
