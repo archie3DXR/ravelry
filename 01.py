@@ -83,13 +83,14 @@ def process_yarn_data(yarn_data, colorway_skeins):
     yarn = yarn_data["yarn"]
 
     yarn_id = yarn["id"]
+    brand = yarn["yarn_company"]["name"]
     name = yarn["name"]
     weight = yarn["grams"]
     yardage = yarn["yardage"]
-    company_name = yarn["yarn_company"]["name"]
+    total_meterage = yardage * 0.9144
 
-    yarn_attributes.append(
-        (yarn_id, name, company_name, weight, yardage, round(weight / yardage, 2)))
+    yarn_attributes.append((yarn_id, brand, name, weight, round(yardage * 0.9144, 1),
+                            yardage, round(weight / (yardage * 0.9144), 2)))
 
     return yarn_attributes, colorway_skeins
 
@@ -102,8 +103,8 @@ def view_database():
     yarn_rows = cursor.fetchall()
 
     table = PrettyTable()
-    table.field_names = ["id", "brand", "name", "weight_grams", "length_meters",
-                         "length_yards", "weight_per_unit_length", "colorway_skeins"]
+    table.field_names = ["id", "brand", "name", "weight_grams",
+                         "length_meters", "length_yards", "weight_per_unit_length", "colorway_skeins"]
 
     for yarn_row in yarn_rows:
         yarn_id = yarn_row[0]
@@ -112,9 +113,9 @@ def view_database():
         colorway_rows = cursor.fetchall()
 
         colorway_skeins = "\n".join(
-            [f"{colorway}: {num_skeins} skeins" for colorway, num_skeins in colorway_rows])
+            [f"{colorway}: {num_skeins} skeins ({num_skeins * yarn_row[4]} meters)" for colorway, num_skeins in colorway_rows])
 
-        table.add_row(yarn_row + (colorway_skeins,))
+        table.add_row(yarn_row[0:3] + yarn_row[3:] + (colorway_skeins,))
 
     print(table)
 
@@ -222,9 +223,10 @@ def edit():
 
     if yarn_row:
         print(f"Editing yarn with ID: {yarn_id}")
-        print(f"Current colorways for yarn '{yarn_row[3]}':")
+        print(f"Current colorways for yarn '{yarn_row[2]}':")
         cursor.execute(
-            "SELECT colorway, num_skeins FROM colorways WHERE yarn_id = ?", (yarn_id,)
+            "SELECT colorway, num_skeins FROM colorways WHERE yarn_id = ?", (
+                yarn_id,)
         )
         colorway_rows = cursor.fetchall()
         for colorway_row in colorway_rows:
@@ -232,38 +234,20 @@ def edit():
                 f"Colorway: {colorway_row[0]}, Num Skeins: {colorway_row[1]}")
 
         while True:
-            action = click.prompt("Select an action: (a)dd, (e)dit, (r)emove, (d)one", type=str)
-            if action.lower() == "a":
-                colorway = click.prompt("Enter the new colorway", type=str)
-                num_skeins = click.prompt("Enter the number of skeins", type=float)
-                cursor.execute(
-                    "INSERT INTO colorways (yarn_id, colorway, num_skeins) VALUES (?, ?, ?)",
-                    (yarn_id, colorway, num_skeins)
-                )
-                conn.commit()
-                print("Colorway added successfully!")
-            elif action.lower() == "e":
-                colorway = click.prompt("Enter the colorway to edit", type=str)
-                new_num_skeins = click.prompt("Enter the new number of skeins", type=float)
-                cursor.execute(
-                    "UPDATE colorways SET num_skeins = ? WHERE yarn_id = ? AND colorway = ?",
-                    (new_num_skeins, yarn_id, colorway)
-                )
-                conn.commit()
-                print("Colorway updated successfully!")
-            elif action.lower() == "r":
-                colorway = click.prompt("Enter the colorway to remove", type=str)
-                cursor.execute(
-                    "DELETE FROM colorways WHERE yarn_id = ? AND colorway = ?",
-                    (yarn_id, colorway)
-                )
-                conn.commit()
-                print("Colorway removed successfully!")
-            elif action.lower() == "d":
+            colorway = click.prompt(
+                "Enter the colorway to edit (or 'done' to finish)", type=str)
+            if colorway.lower() == "done":
                 break
-            else:
-                print("Invalid action. Please try again.")
+            new_num_skeins = click.prompt(
+                "Enter the new number of skeins", type=float)
 
+            cursor.execute(
+                "UPDATE colorways SET num_skeins = ? WHERE yarn_id = ? AND colorway = ?",
+                (new_num_skeins, yarn_id, colorway)
+            )
+            conn.commit()
+
+        print("Yarn updated successfully!")
     else:
         print(f"No yarn found with ID: {yarn_id}")
 
@@ -273,5 +257,3 @@ def edit():
 if __name__ == "__main__":
     setup_database()
     cli()
-
-
