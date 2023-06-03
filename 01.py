@@ -113,7 +113,7 @@ def view_database():
         colorway_rows = cursor.fetchall()
 
         colorway_skeins = "\n".join(
-            [f"{colorway}: {num_skeins} skeins ({round(num_skeins * yarn_row[4] * 0.001,2)}km)" for colorway, num_skeins in colorway_rows])
+            [f"{colorway}: {round(num_skeins)} skeins ({round(num_skeins * yarn_row[4] * 0.001,2)}km)" for colorway, num_skeins in colorway_rows])
 
         table.add_row(yarn_row[0:3] + yarn_row[3:] + (colorway_skeins,))
 
