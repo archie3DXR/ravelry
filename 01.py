@@ -169,7 +169,7 @@ def add():
     if data is not None:
         for i, yarn in enumerate(data):
             print(
-                f"{i+1}. Yarn ID: {yarn['id']} | {yarn['yarn_company_name']} - {yarn['name']}")
+                f"| {i+1} | {yarn['id']} : {yarn['yarn_company_name']} - {yarn['name']}")
 
         selection = click.prompt("\nSelect the yarn number", type=int)
         yarn_id = data[selection - 1]['id']
