@@ -49,21 +49,25 @@ def fetch_rav(query):
         response = requests.get(url, auth=auth)
         response.raise_for_status()  # Check for any request errors
         data = response.json()
+        return data
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"JSON decoding error: {e}")
+        return None
 
-        # Connect to the database
-        conn = sqlite3.connect('yarn_db.sqlite')
-        cursor = conn.cursor()
 
-        # Insert the data into the database
-        for yarn in data['yarns']:
-            cursor.execute("""
-                INSERT INTO yarns (name, brand, weight_grams, weight_lbs, length_meters, length_yards, weight_per_unit_length)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (yarn['name'], yarn['brand'], yarn['weight']['grams'], yarn['weight']['lbs'], yarn['length']['meters'], yarn['length']['yards'], yarn['weight_per_unit_length']))
+def fetch_yarn_by_id(id):
+    ravelry_user = os.getenv('RAVELRY_USER')
+    ravelry_password = os.getenv('RAVELRY_PASSWORD')
+    url = f"https://api.ravelry.com/yarns/{id}.json"
+    auth = (ravelry_user, ravelry_password)
 
-        conn.commit()
-        conn.close()
-
+    try:
+        response = requests.get(url, auth=auth)
+        response.raise_for_status()  # Check for any request errors
+        data = response.json()
         return data
     except requests.exceptions.RequestException as e:
         print(f"Request error: {e}")
@@ -84,16 +88,22 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fetch data from Ravelry API")
-    parser.add_argument("-tool", type=str,
-                        help="The tool to use", required=False)
     parser.add_argument("-query", type=str,
                         help="The query to search", required=False)
+    parser.add_argument("-id", type=int, help="The yarn id", required=False)
 
     args = parser.parse_args()
 
-    # fetch ravelry data as json
-    data = fetch_rav(args.query)
-    print(json.dumps(data, indent=4))
+    if args.query:
+        data = fetch_rav(args.query)
+        if data is not None:
+            print(json.dumps(data["yarns"][0], indent=4))
+
+    if args.id:
+        yarn_data = fetch_yarn_by_id(args.id)
+        if yarn_data is not None:
+            print(json.dumps(yarn_data, indent=4))
+
 
 # if data is not None:
 #     print(json.dumps(data, indent=4))
