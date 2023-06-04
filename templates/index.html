@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Yarn Database</title>
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.18/datatables.min.css"
+    />
+
+    <script
+      type="text/javascript"
+      src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.18/datatables.min.js"
+    ></script>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h1 class="text-center">Yarn Database</h1>
+      <table class="table table-striped" id="myTable">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Brand</th>
+            <th>Name</th>
+            <th>Weight (grams)</th>
+            <th>Length (meters)</th>
+            <th>Length (yards)</th>
+            <th>Weight/Unit Length</th>
+            <th>Colorway</th>
+            <th>Skeins</th>
+            <th>Meterage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in yarns_colorways %}
+          <tr>
+            <td>{{ item[0] }}</td>
+            <td>{{ item[1] }}</td>
+            <td>{{ item[2] }}</td>
+            <td>{{ item[3] }}</td>
+            <td>{{ item[4] }}</td>
+            <td>{{ item[5] }}</td>
+            <td>{{ item[6] }}</td>
+            <td>{{ item[7] }}</td>
+            <td>{{ item[8] }}</td>
+            <td>{{ item[9] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <script>
+      $(document).ready(function () {
+        $("#myTable").DataTable();
+      });
+    </script>
+  </body>
+</html>
