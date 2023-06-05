@@ -21,23 +21,29 @@
   <body>
     <div class="container mt-5">
       <h1 class="text-center">Yarn Database</h1>
-      <form action="/filter" method="get">
-        <label for="column">Column:</label>
-        <select id="column" name="column">
-          <option value="length_meters">Length (Meters)</option>
-          <option value="weight_grams">Weight (Grams)</option>
-          <option value="weight_per_unit_length">grams per meter (g/m)</option>
-          <!-- Add more options here for other columns -->
-        </select>
+      <div class="entries-count container my-5 border rounded p-2 text-center">
+        <form action="/filter" method="get" id="filterForm">
+          <label for="column">Column:</label>
+          <select id="column" name="column">
+            <option value="weight_per_unit_length">Weight/Meters (g/m)</option>
+            <option value="meterage">Meterage (Meters)</option>
+            <option value="length_meters">Length (Meters)</option>
+            <option value="weight_grams">Weight (Grams)</option>
 
-        <label for="min_value">Minimum:</label>
-        <input type="text" id="min_value" name="min_value" />
+            <!-- Add more options here for other columns -->
+          </select>
 
-        <label for="max_value">Maximum:</label>
-        <input type="text" id="max_value" name="max_value" />
+          <label for="min_value">Minimum:</label>
+          <input type="text" id="min_value" name="min_value" />
 
-        <input type="submit" value="Submit" />
-      </form>
+          <label for="max_value">Maximum:</label>
+          <input type="text" id="max_value" name="max_value" />
+
+          <input type="submit" value="Submit" />
+        </form>
+        <p id="entriesCount"></p>
+        <p id="filterValues"></p>
+      </div>
 
       <table class="table table-striped" id="myTable">
         <thead>
@@ -74,7 +80,45 @@
     </div>
     <script>
       $(document).ready(function () {
-        $("#myTable").DataTable();
+        var table = $("#myTable").DataTable({
+          paging: false, // Disable paging
+        });
+
+        var updateEntriesCount = function () {
+          var entriesCount = table.rows({ search: "applied" }).count();
+          var min = $("#min_value").val(); // Get the min_value input value
+          var max = $("#max_value").val(); // Get the max_value input value
+          var column = $("#column").val(); // Get the selected column value
+
+          $("#entriesCount").text("Entries: " + entriesCount);
+          $("#filterValues").text(
+            "Column: " + column + ", Min: " + min + ", Max: " + max
+          );
+        };
+
+        table.on("draw", function () {
+          updateEntriesCount();
+        });
+
+        // Get the submitted min, max, and column values from the URL parameters
+        var urlParams = new URLSearchParams(window.location.search);
+        var min = urlParams.get("min_value") || "";
+        var max = urlParams.get("max_value") || "";
+        var column = urlParams.get("column") || "";
+
+        // Set the min, max, and column values in the input fields and select field
+        $("#min_value").val(min);
+        $("#max_value").val(max);
+        $("#column").val(column);
+
+        // Submit the form when the min, max, or column value is changed
+        $("#min_value, #max_value, #column").on("change", function () {
+          $("#filterForm").submit();
+        });
+
+        updateEntriesCount();
+
+        // Rest of the JavaScript code
       });
     </script>
   </body>

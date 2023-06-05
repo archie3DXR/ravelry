@@ -159,45 +159,6 @@ def view_database():
     conn.close()
 
 
-@app.route("/filter", methods=["GET"])
-@app.route("/filter", methods=["GET"])
-def filter_database():
-    column = request.args.get("column", default="*", type=str)
-    min_value = request.args.get("min_value", default=0, type=float)
-    max_value = request.args.get("max_value", default=1, type=float)
-
-    ALLOWED_COLUMNS = [
-        "weight_grams",
-        "length_meters",
-        "length_yards",
-        "weight_per_unit_length",
-    ]
-
-    if column not in ALLOWED_COLUMNS:
-        return "Invalid column", 400
-
-    conn = sqlite3.connect("yarn_db.sqlite")
-    cursor = conn.cursor()
-
-    query = """
-        SELECT yarns.id, yarns.brand, yarns.name, yarns.weight_grams, yarns.length_meters, yarns.length_yards, yarns.weight_per_unit_length,
-               colorways.colorway, colorways.num_skeins
-        FROM yarns
-        INNER JOIN colorways ON yarns.id = colorways.yarn_id
-        WHERE {} BETWEEN ? AND ?
-    """.format(
-        column
-    )
-
-    cursor.execute(query, (min_value, max_value))
-    filtered_rows = cursor.fetchall()
-
-    conn.close()
-
-    # You might want to return these rows in a render_template() call or some other way depending on your application
-    return render_template("index.html", filtered_rows=filtered_rows)
-
-
 @click.group()
 def cli():
     pass
@@ -387,6 +348,47 @@ def display_database():
         yarns_colorways_modified.append(item)  # Append the new tuple to the list
 
     return render_template("index.html", yarns_colorways=yarns_colorways_modified)
+
+
+@app.route("/filter", methods=["GET"])
+def filter_database():
+    column = request.args.get("column", default="*", type=str)
+    min_value = request.args.get("min_value", default=0, type=float)
+    max_value = request.args.get("max_value", default=1, type=float)
+
+    ALLOWED_COLUMNS = [
+        "weight_grams",
+        "length_meters",
+        "length_yards",
+        "weight_per_unit_length",
+        "meterage",
+    ]
+
+    if column not in ALLOWED_COLUMNS:
+        return "Invalid column", 400
+
+    conn = sqlite3.connect("yarn_db.sqlite")
+    cursor = conn.cursor()
+
+    query = """
+        SELECT yarns.id, yarns.brand, yarns.name, yarns.weight_grams, yarns.length_meters, yarns.length_yards, yarns.weight_per_unit_length,
+            colorways.colorway, colorways.num_skeins,
+            ROUND(yarns.length_meters * colorways.num_skeins, 2) AS meterage
+        FROM yarns
+        INNER JOIN colorways ON yarns.id = colorways.yarn_id
+        WHERE {} BETWEEN ? AND ?
+    """.format(
+        column
+    )
+
+    cursor.execute(query, (min_value, max_value))
+
+    filtered_rows = cursor.fetchall()
+
+    conn.close()
+
+    # You might want to return these rows in a render_template() call or some other way depending on your application
+    return render_template("index.html", yarns_colorways=filtered_rows)
 
 
 if __name__ == "__main__":
