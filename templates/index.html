@@ -21,6 +21,24 @@
   <body>
     <div class="container mt-5">
       <h1 class="text-center">Yarn Database</h1>
+      <form action="/filter" method="get">
+        <label for="column">Column:</label>
+        <select id="column" name="column">
+          <option value="length_meters">Length (Meters)</option>
+          <option value="weight_grams">Weight (Grams)</option>
+          <option value="weight_per_unit_length">grams per meter (g/m)</option>
+          <!-- Add more options here for other columns -->
+        </select>
+
+        <label for="min_value">Minimum:</label>
+        <input type="text" id="min_value" name="min_value" />
+
+        <label for="max_value">Maximum:</label>
+        <input type="text" id="max_value" name="max_value" />
+
+        <input type="submit" value="Submit" />
+      </form>
+
       <table class="table table-striped" id="myTable">
         <thead>
           <tr>
