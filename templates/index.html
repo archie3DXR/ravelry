@@ -14,10 +14,17 @@
     />
 
     <script
+      src="https://code.jquery.com/jquery-3.6.0.min.js"
+      integrity="sha384-KyZXEAg3QhqLMpG8r+Knujsl5/1hb6b8g5g0n3lOLo4y4gx5nU4w2f4Z+d5GDK6bj"
+      crossorigin="anonymous"
+    ></script>
+
+    <script
       type="text/javascript"
       src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.18/datatables.min.js"
     ></script>
   </head>
+
   <body>
     <div class="container mt-5">
       <h1 class="text-center">Yarn Database</h1>
@@ -41,8 +48,10 @@
 
           <input type="submit" value="Submit" />
         </form>
+        <button class="btn btn-secondary mb-2" id="clearFiltersBtn">
+          Clear Filters
+        </button>
         <p id="entriesCount"></p>
-        <p id="filterValues"></p>
       </div>
 
       <table class="table table-striped" id="myTable">
@@ -118,7 +127,25 @@
 
         updateEntriesCount();
 
-        // Rest of the JavaScript code
+        document
+          .getElementById("clearFiltersBtn")
+          .addEventListener("click", function (event) {
+            // Prevent the form submission
+            event.preventDefault();
+
+            // Clear the filter inputs
+            document.getElementById("column").value = "";
+            document.getElementById("min_value").value = "";
+            document.getElementById("max_value").value = "";
+
+            // Replace the current history entry with the base URL
+            var baseUrl =
+              window.location.protocol + "//" + window.location.host + "/";
+            history.replaceState({}, document.title, baseUrl);
+
+            // Reload the page (or just the table if possible)
+            location.reload();
+          });
       });
     </script>
   </body>
